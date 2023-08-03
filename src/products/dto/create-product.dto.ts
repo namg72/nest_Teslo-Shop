@@ -38,6 +38,15 @@ export class CreateProductDto {
      @IsOptional()
      tags: string[];
  
+     //columna donde vammos a almacenar las imagenes
+
+     @IsString({each: true})
+     @IsArray()
+     @IsOptional()
+     images?: string[];
+ 
+
+
 }
 
 

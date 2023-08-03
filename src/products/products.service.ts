@@ -6,7 +6,7 @@ import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { validate as isUUID  } from 'uuid';
-import e from 'express';
+import { ProductImage } from './entities/products-image.entity';
 
 @Injectable()
 export class ProductsService {
@@ -22,6 +22,10 @@ export class ProductsService {
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
 
+    //injectamos el repositorio de las imagens
+    @InjectRepository(ProductImage)
+    private readonly productImageRepository: Repository<ProductImage>,
+
   ){}
 
   //Insert producto in bd
@@ -30,14 +34,20 @@ export class ProductsService {
 
    try {
 
+    const {images =[] , ...productDetails  } = createProductDto
+
     //Creamos la instancia del producto a insertar
-      const product= this.productRepository.create(createProductDto);
+      const product= this.productRepository.create({
+        ...productDetails,
+        images: images.map( image => this.productImageRepository.create({url:image}))
+      
+      });
 
       await this.productRepository.save(product);
 
       
 
-      return product
+      return {...product, images:images  } 
 
    } catch (error) {
      
@@ -58,9 +68,12 @@ export class ProductsService {
    try {
 
      const products:Product[] = await this.productRepository.find({
-       //paginamos cone le limit y el skip 
+       //paginamos cone le limit y el skip y el relation para ver la columna de la imagen realacionada
        take:limit,
        skip:offset,
+       relations :{
+        images: true
+       } 
        
      })
                                             
@@ -69,7 +82,8 @@ export class ProductsService {
         return "the bd is empty"
       }
         
-        return products;
+        return products;  // ** para ver solo los url de las iamgnes ver abajo
+
         
    } catch (error) {
      this.handleDbExceptions(error)
@@ -94,13 +108,16 @@ export class ProductsService {
   } else{
 
     //mediante el queryBuiler hacemos una query SQL para buscar por slug o
-    const queryBuilder = this.productRepository.createQueryBuilder();
+    const queryBuilder = this.productRepository.createQueryBuilder('prod');
 
     product = await queryBuilder
        .where('LOWER(title) = :title or slug = :slug', {
           title: term.toLowerCase(),
           slug: term.toLowerCase(),
-       }).getOne();
+          
+       })
+       .leftJoinAndSelect('prod.images', 'prodImages')
+       .getOne();
 
 
   }
@@ -115,6 +132,24 @@ export class ProductsService {
   }
 
 
+
+   //Metodo para mostrar las imagens planas, este metodo lo que es llamar al  metodo findOne y desectrutuvra las imagenes para mostrar solo el url y luego indicarle
+   // al congtrolador que use este en lugar del findOnde
+
+    async findOnePlain(term: string){
+
+      const product= await this.findOne(term);
+
+      return {
+            ...product,
+            images: product.images.map( image => image.url)
+         }
+      }
+
+    
+
+
+
   // update
   async update(id: string, updateProductDto: UpdateProductDto) {
 
@@ -123,7 +158,8 @@ export class ProductsService {
 
    const product = await this.productRepository.preload({
     id:id,
-    ... updateProductDto
+    ... updateProductDto,
+    images:[]
    });
 
    //Si no se encuaentra poducto se lanza error y si tenmemos el producto lo guardamos en la bd
@@ -156,6 +192,29 @@ export class ProductsService {
   }
 
 
+//Metodo para borrar todas los productos
+async deleteAllProducts(){
+
+    const queryBuilder = this.productRepository.createQueryBuilder('product');
+
+    try {
+      
+      return await queryBuilder
+          .delete()
+          .where({})   //condicion para que los coja todos
+          .execute()
+
+
+    } catch (error) {
+       this.handleDbExceptions(error)
+    }
+
+}
+
+
+
+
+
 
 //metodo para manjera los errores 
  private handleDbExceptions(error: any){
@@ -176,3 +235,22 @@ export class ProductsService {
 
 
 }
+
+
+/*
+
+** APLANAR LAS IMANGES Y SACAR LOS LO URL EN EL METODO FINDALL
+
+    con el .map desectruturamos el array y y lo modificcamos con el primer .map
+    y con el segundo ho hacemso con el array de las imagenes para solo reornar
+    la url y no el id
+
+
+    return products.map( product => ({
+        ...product,
+        images: product.images.map( img => img)
+    }))
+
+
+
+*/

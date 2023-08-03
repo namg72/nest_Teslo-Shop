@@ -1,11 +1,9 @@
 
-import { BeforeInsert, BeforeUpdate, Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
-import { ProductImage } from "./products-image.entity";
+import { BeforeInsert, BeforeUpdate, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
-
-
-@Entity({name: 'products'})
+@Entity()
 export class Product {
+    [x: string]: any;
 
     @PrimaryGeneratedColumn('uuid')
     id: string;
@@ -51,16 +49,7 @@ export class Product {
         array: true,
         default: []
     }) 
-    tags: string[];
-
-
-    @OneToMany(
-        () => ProductImage,
-        (productImage) => productImage.product,
-        {cascade: true, eager: true}
-    )
-    images?: ProductImage[]; 
-    
+    tags: string[]
 
     //Vamos a controlar que antes de insertar en la base de datos con el decorador @beforeInset() si no vie el slug que lo cree con el nombre del titulo
     //pasandolo a minuscular y quitando el apostrofe y los espacis vacions sustiuyendolos por _ y si viene que lo cambie a lo anterior
